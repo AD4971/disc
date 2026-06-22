@@ -1,0 +1,11 @@
+.viewer {
+  position: fixed;
+  inset: 0;
+  min-width: 320px;
+  min-height: 100dvh;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 48%, rgba(255, 255, 255, 0.055), transparent 32%),
+    radial-gradient(circle at 42% 42%, rgba(118, 125, 122, 0.1), transparent 38%),
+    #030303;
+}
