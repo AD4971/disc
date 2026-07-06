@@ -2,9 +2,10 @@ import type { Vector3Tuple } from "three";
 
 export const DISC_DIMENSIONS = {
   outerRadius: 2,
-  innerRadius: 0.33,
-  labelRadius: 0.92,
-  hubRadius: 0.68,
+  innerRadius: 0.25,
+  hubRadius: 0.34,
+  labelRadius: 0.37,
+  artworkInnerRadius: 0.38,
   thickness: 0.035,
   segments: 224
 } as const;

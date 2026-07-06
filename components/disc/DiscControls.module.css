@@ -58,6 +58,10 @@
   transform: translateY(1px);
 }
 
+.control:disabled {
+  cursor: default;
+}
+
 .active {
   color: #ffffff;
   background: rgba(220, 226, 224, 0.16);

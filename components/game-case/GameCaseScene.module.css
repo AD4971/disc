@@ -1,0 +1,28 @@
+.scene {
+  position: fixed;
+  inset: 0;
+  min-height: 100dvh;
+  background: #050506;
+}
+
+.scene canvas {
+  touch-action: none;
+}
+
+.hint {
+  position: fixed;
+  bottom: 26px;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: rgba(214, 222, 235, 0.55);
+  pointer-events: none;
+  user-select: none;
+  transition: opacity 0.4s ease;
+}
+
+.hint[data-state="opening"] {
+  opacity: 0;
+}

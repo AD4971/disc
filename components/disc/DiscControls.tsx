@@ -2,6 +2,7 @@
 
 import {
   CircleOff,
+  Film,
   FlipVertical2,
   Play,
   RotateCcw,
@@ -12,7 +13,9 @@ import styles from "./DiscControls.module.css";
 
 type DiscControlsProps = {
   autoRotate: boolean;
+  isRecordingLoop: boolean;
   onAutoRotateChange: (enabled: boolean) => void;
+  onRecordLoop: () => void;
   onReset: () => void;
   onFront: () => void;
   onBack: () => void;
@@ -21,7 +24,9 @@ type DiscControlsProps = {
 
 export function DiscControls({
   autoRotate,
+  isRecordingLoop,
   onAutoRotateChange,
+  onRecordLoop,
   onReset,
   onFront,
   onBack,
@@ -38,6 +43,18 @@ export function DiscControls({
       >
         {autoRotate ? <CircleOff size={17} /> : <Play size={17} />}
         <span>Auto rotate</span>
+      </button>
+
+      <button
+        className={`${styles.control} ${isRecordingLoop ? styles.active : ""}`}
+        type="button"
+        aria-pressed={isRecordingLoop}
+        disabled={isRecordingLoop}
+        title={isRecordingLoop ? "Recording loop in progress" : "Record Loop"}
+        onClick={onRecordLoop}
+      >
+        <Film size={17} />
+        <span>{isRecordingLoop ? "Recording…" : "Record Loop"}</span>
       </button>
 
       <button

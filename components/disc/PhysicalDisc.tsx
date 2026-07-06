@@ -1,17 +1,41 @@
 "use client";
 
-import { useMemo } from "react";
+import { useFrame } from "@react-three/fiber";
+import { useEffect, useMemo, useRef, type RefObject } from "react";
 import {
-  BackSide,
   CylinderGeometry,
-  FrontSide,
-  MeshPhysicalMaterial,
   RingGeometry,
+  type Texture,
   TorusGeometry
 } from "three";
-import { DISC_DIMENSIONS, MATERIAL_COLORS } from "./discConstants";
+import { DISC_DIMENSIONS } from "./discConstants";
+import {
+  applyDiscArtworkState,
+  applyDiscEnvironmentSettings,
+  applyDiscMaterialSettings,
+  type DiscEnvironmentSettings,
+  type DiscMaterialSettings,
+  createPhysicalDiscMaterials
+} from "./discMaterials";
+import type { DiscArtworkState } from "./discArtwork";
 
-export function PhysicalDisc() {
+type PhysicalDiscProps = {
+  artworkState: DiscArtworkState;
+  cinematicEnvironmentRotationRef: RefObject<number>;
+  environmentSettings: DiscEnvironmentSettings;
+  environmentTexture: Texture | null;
+  isRecordingLoop: boolean;
+  materialSettings: DiscMaterialSettings;
+};
+
+export function PhysicalDisc({
+  artworkState,
+  cinematicEnvironmentRotationRef,
+  environmentSettings,
+  environmentTexture,
+  isRecordingLoop,
+  materialSettings
+}: PhysicalDiscProps) {
   const geometry = useMemo(() => {
     const {
       outerRadius,
@@ -24,6 +48,8 @@ export function PhysicalDisc() {
 
     const frontFace = new RingGeometry(innerRadius, outerRadius, segments, 1);
     const backFace = new RingGeometry(innerRadius, outerRadius, segments, 1);
+    const frontOverlay = new RingGeometry(innerRadius, outerRadius, segments, 1);
+    const backOverlay = new RingGeometry(innerRadius, outerRadius, segments, 1);
     const outerWall = new CylinderGeometry(
       outerRadius,
       outerRadius,
@@ -44,16 +70,44 @@ export function PhysicalDisc() {
     const outerRimBack = new TorusGeometry(outerRadius, 0.003, 8, segments);
     const innerRimFront = new TorusGeometry(innerRadius, 0.0028, 8, segments);
     const innerRimBack = new TorusGeometry(innerRadius, 0.0022, 8, segments);
-    const hubInnerBand = new RingGeometry(innerRadius * 1.1, 0.48, segments, 1);
-    const hubFront = new RingGeometry(0.48, hubRadius, segments, 1);
-    const hubBack = new RingGeometry(innerRadius * 1.12, hubRadius * 0.96, segments, 1);
-    const hubOuterBand = new RingGeometry(hubRadius * 0.94, labelRadius, segments, 1);
-    const hubInnerLine = new RingGeometry(0.405, 0.425, segments, 1);
-    const hubOuterLine = new RingGeometry(0.705, 0.725, segments, 1);
+    const hubInnerBandRadius = innerRadius + 0.05;
+    const hubInnerBand = new RingGeometry(
+      innerRadius + 0.025,
+      hubInnerBandRadius,
+      segments,
+      1
+    );
+    const hubFront = new RingGeometry(
+      hubInnerBandRadius,
+      hubRadius,
+      segments,
+      1
+    );
+    const hubBack = new RingGeometry(
+      innerRadius + 0.025,
+      hubRadius,
+      segments,
+      1
+    );
+    const hubOuterBand = new RingGeometry(
+      hubRadius,
+      labelRadius,
+      segments,
+      1
+    );
+    const hubInnerLine = new RingGeometry(
+      innerRadius + 0.041,
+      innerRadius + 0.047,
+      segments,
+      1
+    );
 
     frontFace.computeVertexNormals();
     backFace.rotateX(Math.PI);
     backFace.computeVertexNormals();
+    frontOverlay.computeVertexNormals();
+    backOverlay.rotateX(Math.PI);
+    backOverlay.computeVertexNormals();
     hubBack.rotateX(Math.PI);
     outerWall.rotateX(Math.PI / 2);
     innerWall.rotateX(Math.PI / 2);
@@ -61,6 +115,8 @@ export function PhysicalDisc() {
     return {
       frontFace,
       backFace,
+      frontOverlay,
+      backOverlay,
       outerWall,
       innerWall,
       outerRimFront,
@@ -71,91 +127,56 @@ export function PhysicalDisc() {
       hubFront,
       hubBack,
       hubOuterBand,
-      hubInnerLine,
-      hubOuterLine
+      hubInnerLine
     };
   }, []);
 
-  const materials = useMemo(() => {
-    const faceFront = new MeshPhysicalMaterial({
-      color: MATERIAL_COLORS.front,
-      metalness: 0.42,
-      roughness: 0.34,
-      clearcoat: 0.62,
-      clearcoatRoughness: 0.38,
-      reflectivity: 0.42,
-      side: FrontSide
-    });
+  const materials = useMemo(() => createPhysicalDiscMaterials("silver"), []);
+  const lastCinematicRotationRef = useRef(Number.NaN);
 
-    const faceBack = new MeshPhysicalMaterial({
-      color: MATERIAL_COLORS.back,
-      metalness: 0.38,
-      roughness: 0.42,
-      clearcoat: 0.42,
-      clearcoatRoughness: 0.45,
-      reflectivity: 0.34,
-      side: FrontSide
-    });
+  useEffect(() => {
+    applyDiscMaterialSettings(materials, materialSettings);
+    applyDiscArtworkState(materials, artworkState);
+  }, [artworkState, materialSettings, materials]);
 
-    const wall = new MeshPhysicalMaterial({
-      color: "#737b7a",
-      metalness: 0.36,
-      roughness: 0.36,
-      clearcoat: 0.5,
-      clearcoatRoughness: 0.42
-    });
+  useEffect(() => {
+    applyDiscEnvironmentSettings(
+      materials,
+      environmentSettings,
+      environmentTexture
+    );
+    lastCinematicRotationRef.current = Number.NaN;
+  }, [
+    environmentSettings,
+    environmentTexture,
+    isRecordingLoop,
+    materials
+  ]);
 
-    const innerWall = new MeshPhysicalMaterial({
-      color: "#727a79",
-      metalness: 0.24,
-      roughness: 0.44,
-      clearcoat: 0.3,
-      clearcoatRoughness: 0.5,
-      side: BackSide
-    });
+  useFrame(() => {
+    if (!isRecordingLoop) {
+      return;
+    }
 
-    const rim = new MeshPhysicalMaterial({
-      color: MATERIAL_COLORS.rim,
-      metalness: 0.52,
-      roughness: 0.24,
-      clearcoat: 0.7,
-      clearcoatRoughness: 0.28
-    });
+    const rotation = cinematicEnvironmentRotationRef.current;
 
-    const hub = new MeshPhysicalMaterial({
-      color: "#a7adaa",
-      metalness: 0.28,
-      roughness: 0.36,
-      clearcoat: 0.58,
-      clearcoatRoughness: 0.34,
-      side: FrontSide
-    });
+    if (Math.abs(rotation - lastCinematicRotationRef.current) < 0.000001) {
+      return;
+    }
 
-    const hubLight = hub.clone();
-    hubLight.color.set("#b3b8b5");
-
-    const hubBack = hub.clone();
-    hubBack.color.set("#767d7d");
-    hubBack.side = FrontSide;
-
-    const hubLine = hub.clone();
-    hubLine.color.set("#7f8785");
-    hubLine.roughness = 0.46;
-    hubLine.clearcoat = 0.32;
-
-    const label = new MeshPhysicalMaterial({
-      color: "#89908d",
-      metalness: 0.22,
-      roughness: 0.5,
-      clearcoat: 0.28,
-      clearcoatRoughness: 0.54,
-      side: FrontSide
-    });
-
-    return { faceFront, faceBack, wall, innerWall, rim, hub, hubLight, hubBack, hubLine, label };
-  }, []);
+    applyDiscEnvironmentSettings(
+      materials,
+      {
+        intensity: environmentSettings.intensity,
+        rotation
+      },
+      environmentTexture
+    );
+    lastCinematicRotationRef.current = rotation;
+  });
 
   const z = DISC_DIMENSIONS.thickness / 2;
+  const overlayOffset = 0.002;
   const hubLift = 0.004;
   const hubDetailLift = 0.006;
   const labelLift = 0.0025;
@@ -164,6 +185,18 @@ export function PhysicalDisc() {
     <group>
       <mesh geometry={geometry.frontFace} material={materials.faceFront} position-z={z} />
       <mesh geometry={geometry.backFace} material={materials.faceBack} position-z={-z} />
+      <mesh
+        geometry={geometry.frontOverlay}
+        material={materials.overlayFront}
+        position-z={z + overlayOffset}
+        renderOrder={2}
+      />
+      <mesh
+        geometry={geometry.backOverlay}
+        material={materials.overlayBack}
+        position-z={-z - overlayOffset}
+        renderOrder={2}
+      />
 
       <mesh geometry={geometry.outerWall} material={materials.wall} />
       <mesh geometry={geometry.innerWall} material={materials.innerWall} />
@@ -178,7 +211,6 @@ export function PhysicalDisc() {
       <mesh geometry={geometry.hubBack} material={materials.hubBack} position-z={-z - 0.0025} />
       <mesh geometry={geometry.hubOuterBand} material={materials.label} position-z={z + labelLift} />
       <mesh geometry={geometry.hubInnerLine} material={materials.hubLine} position-z={z + hubDetailLift + 0.0005} />
-      <mesh geometry={geometry.hubOuterLine} material={materials.hubLine} position-z={z + hubDetailLift + 0.0005} />
     </group>
   );
 }
